@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# Environment variables & secrets
+.env
+
+# Database (local test sqlite if ever generated)
+*.sqlite3
+*.db
+
+# Django media and static collection
+media/
+staticfiles/
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace

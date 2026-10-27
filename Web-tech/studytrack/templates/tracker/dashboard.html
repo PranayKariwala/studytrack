@@ -1,0 +1,268 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - StudyTrack{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-lg-4">
+  <!-- Top Greeting & Quick Actions Bar -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-2 border-bottom">
+    <div class="mb-3 mb-md-0">
+      <h2 class="fw-bold mb-1">
+        Hello, <span class="text-primary">{{ user.username }}</span> 👋
+      </h2>
+      <p class="text-muted mb-0 small">
+        <i class="bi bi-calendar3 me-1"></i> Today is {{ today|date:"l, F j, Y" }} &bull; Here is your coursework overview.
+      </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="{% url 'subject_create' %}" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-folder-plus me-1"></i> Add Subject
+      </a>
+      <a href="{% url 'assignment_create' %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle me-1"></i> Add Assignment
+      </a>
+      <a href="{% url 'export_assignments_csv' %}" class="btn btn-outline-secondary btn-sm" title="Download CSV report">
+        <i class="bi bi-file-earmark-spreadsheet me-1"></i> Export CSV
+      </a>
+    </div>
+  </div>
+
+  <!-- Metric Statistics Cards Row -->
+  <div class="row g-3 mb-4">
+    <!-- Total Assignments -->
+    <div class="col-sm-6 col-xl-3">
+      <div class="stat-card d-flex align-items-center">
+        <div class="stat-icon bg-primary bg-opacity-10 text-primary me-3">
+          <i class="bi bi-journal-text"></i>
+        </div>
+        <div>
+          <div class="stat-value text-dark" id="stat-total">{{ total_assignments }}</div>
+          <div class="stat-label">Total Assignments</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pending Assignments -->
+    <div class="col-sm-6 col-xl-3">
+      <div class="stat-card d-flex align-items-center">
+        <div class="stat-icon bg-warning bg-opacity-10 text-warning me-3">
+          <i class="bi bi-hourglass-split"></i>
+        </div>
+        <div>
+          <div class="stat-value text-warning" id="stat-pending">{{ pending_assignments }}</div>
+          <div class="stat-label">Pending Submissions</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Completed Assignments -->
+    <div class="col-sm-6 col-xl-3">
+      <div class="stat-card d-flex align-items-center">
+        <div class="stat-icon bg-success bg-opacity-10 text-success me-3">
+          <i class="bi bi-check2-all"></i>
+        </div>
+        <div>
+          <div class="stat-value text-success" id="stat-completed">{{ completed_assignments }}</div>
+          <div class="stat-label">Completed Tasks</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Overdue Assignments -->
+    <div class="col-sm-6 col-xl-3">
+      <div class="stat-card d-flex align-items-center {% if overdue_assignments > 0 %}border-danger border-opacity-50{% endif %}">
+        <div class="stat-icon bg-danger bg-opacity-10 text-danger me-3">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+        </div>
+        <div>
+          <div class="stat-value text-danger" id="stat-overdue">{{ overdue_assignments }}</div>
+          <div class="stat-label">Overdue Tasks</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overall Progress Bar Card -->
+  <div class="content-card mb-4">
+    <div class="content-card-body p-3 p-md-4">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="fw-semibold text-dark">
+          <i class="bi bi-graph-up me-1 text-primary"></i> Coursework Completion Rate
+        </span>
+        <span class="fw-bold text-primary">{{ completion_percentage }}%</span>
+      </div>
+      <div class="progress" style="height: 10px;">
+        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: {{ completion_percentage }}%;" aria-valuenow="{{ completion_percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+      </div>
+      <div class="d-flex justify-content-between text-muted small mt-2">
+        <span>{{ completed_assignments }} of {{ total_assignments }} tasks finished</span>
+        <span>{{ subjects_count }} Active Subject{{ subjects_count|pluralize }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overdue Warning Banner if applicable -->
+  {% if overdue_list %}
+    <div class="alert alert-danger mb-4 shadow-sm" role="alert">
+      <div class="d-flex align-items-center mb-2">
+        <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+        <h5 class="alert-heading mb-0 fw-bold">Attention Required: Overdue Assignments</h5>
+      </div>
+      <p class="small mb-3">The following pending assignments are past their designated submission date. Please review and submit immediately:</p>
+      <div class="list-group list-group-flush bg-transparent">
+        {% for item in overdue_list %}
+          <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-danger border-opacity-25 px-0 py-2">
+            <div>
+              <strong>{{ item.title }}</strong>
+              <span class="badge bg-secondary bg-opacity-25 text-dark ms-2">{{ item.subject.name }}</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge badge-status-overdue">Due {{ item.due_date|date:"M j, Y" }}</span>
+              <form action="{% url 'assignment_toggle_status' item.id %}" method="post" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-success py-0 px-2" title="Mark Done">
+                  <i class="bi bi-check-lg"></i> Done
+                </button>
+              </form>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Main Dashboard Columns: Upcoming Deadlines & Quick Overview -->
+  <div class="row g-4">
+    <!-- Upcoming Deadlines -->
+    <div class="col-lg-8">
+      <div class="content-card h-100">
+        <div class="content-card-header d-flex justify-content-between align-items-center">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-calendar-check me-2 text-primary fs-5"></i>
+            <span class="fw-bold">Upcoming Deadlines</span>
+          </div>
+          <a href="{% url 'assignment_list' %}" class="small text-decoration-none fw-semibold">
+            View All <i class="bi bi-arrow-right"></i>
+          </a>
+        </div>
+        <div class="content-card-body p-0">
+          {% if upcoming_deadlines %}
+            <div class="table-responsive">
+              <table class="table table-hover table-custom align-middle">
+                <thead>
+                  <tr>
+                    <th>Assignment</th>
+                    <th>Subject</th>
+                    <th>Due Date</th>
+                    <th>Priority</th>
+                    <th class="text-end">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in upcoming_deadlines %}
+                    <tr id="assignment-card-{{ item.id }}">
+                      <td>
+                        <div class="fw-semibold text-dark">{{ item.title }}</div>
+                        {% if item.description %}
+                          <small class="text-muted d-block text-truncate" style="max-width: 250px;">{{ item.description }}</small>
+                        {% endif %}
+                      </td>
+                      <td>
+                        <span class="badge bg-light text-dark border">{{ item.subject.name }}</span>
+                      </td>
+                      <td>
+                        <span class="text-dark fw-medium">{{ item.due_date|date:"M j, Y" }}</span>
+                        {% if item.due_date == today %}
+                          <span class="badge bg-warning text-dark ms-1">Today</span>
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if item.priority == 'high' %}
+                          <span class="badge badge-priority-high">High</span>
+                        {% elif item.priority == 'medium' %}
+                          <span class="badge badge-priority-medium">Medium</span>
+                        {% else %}
+                          <span class="badge badge-priority-low">Low</span>
+                        {% endif %}
+                      </td>
+                      <td class="text-end">
+                        <form action="{% url 'assignment_toggle_status' item.id %}" method="post" class="d-inline">
+                          {% csrf_token %}
+                          <button type="submit" class="btn btn-sm btn-outline-success btn-ajax-toggle-status" data-assignment-id="{{ item.id }}" title="Toggle Completion">
+                            <i class="bi bi-check2"></i> Mark Done
+                          </button>
+                        </form>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="empty-state">
+              <div class="empty-state-icon text-muted">
+                <i class="bi bi-calendar2-check"></i>
+              </div>
+              <h5 class="fw-bold mb-1">No upcoming deadlines!</h5>
+              <p class="text-muted small mb-3">You have either completed all tasks or haven't scheduled assignments yet.</p>
+              {% if subjects_count == 0 %}
+                <a href="{% url 'subject_create' %}" class="btn btn-primary btn-sm">
+                  <i class="bi bi-folder-plus me-1"></i> Add Your First Subject
+                </a>
+              {% else %}
+                <a href="{% url 'assignment_create' %}" class="btn btn-primary btn-sm">
+                  <i class="bi bi-plus-circle me-1"></i> Add an Assignment
+                </a>
+              {% endif %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Quick Status & Academic Guide -->
+    <div class="col-lg-4">
+      <div class="content-card mb-4">
+        <div class="content-card-header d-flex align-items-center">
+          <i class="bi bi-bookmarks me-2 text-primary fs-5"></i>
+          <span class="fw-bold">Your Subjects</span>
+        </div>
+        <div class="content-card-body p-3">
+          {% if subjects_count > 0 %}
+            <p class="text-muted small mb-3">You are currently managing <strong>{{ subjects_count }}</strong> academic subject{{ subjects_count|pluralize }}.</p>
+            <div class="d-grid gap-2">
+              <a href="{% url 'subject_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-gear me-1"></i> Manage All Subjects
+              </a>
+              <a href="{% url 'assignment_create' %}" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-lg me-1"></i> New Assignment
+              </a>
+            </div>
+          {% else %}
+            <div class="text-center py-3">
+              <p class="text-muted small mb-3">No subjects enrolled yet. Add your curriculum subjects to begin tracking.</p>
+              <a href="{% url 'subject_create' %}" class="btn btn-primary btn-sm">
+                <i class="bi bi-folder-plus me-1"></i> Add First Subject
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="content-card bg-light border-0">
+        <div class="content-card-body p-3">
+          <h6 class="fw-bold text-dark mb-2">
+            <i class="bi bi-info-circle text-primary me-1"></i> Viva & Tech Stack Notes
+          </h6>
+          <ul class="text-muted small ps-3 mb-0">
+            <li><strong>Architecture:</strong> Django Model-View-Template (MVT)</li>
+            <li><strong>Database:</strong> MySQL via PyMySQL Connector</li>
+            <li><strong>Security:</strong> CSRF protection, PBKDF2 passwords, ownership authorization</li>
+            <li><strong>Integrity:</strong> Cross-user subject validation in models & forms</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
